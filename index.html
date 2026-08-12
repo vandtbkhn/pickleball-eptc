@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Giải Pickleball EPTC - Kết quả thi đấu</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏓</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#0f1720;
+    --surface:#16212c;
+    --surface-2:#1d2b38;
+    --border:#28394a;
+    --text:#eef3f7;
+    --text-dim:#93a4b3;
+    --brand:#3ddc97;
+    --brand-2:#2bb583;
+    --accent:#ffb03b;
+    --danger:#ff5d6c;
+    --nam:#4d9bff;
+    --nu:#ff6fa5;
+    --mix:#ffb03b;
+    --radius:14px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  #app{max-width:560px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding-bottom: calc(64px + var(--safe-bottom));}
+
+  header.top{
+    position:sticky; top:0; z-index:20; background:linear-gradient(180deg, var(--bg) 80%, transparent);
+    padding:12px 14px 6px;
+  }
+  .brand-row{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .brand-row h1{font-size:16px; margin:0; font-weight:800; letter-spacing:.2px;}
+  .brand-row h1 span{color:var(--brand);}
+  .status{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim); white-space:nowrap;}
+  .sync-row{display:flex; justify-content:flex-end; padding:6px 14px 0;}
+  .sync-btn{display:flex; align-items:center; gap:6px; background:var(--surface-2); color:var(--text); border:1px solid var(--border); border-radius:10px; padding:7px 12px; font-size:12px; font-weight:700; cursor:pointer;}
+  .sync-btn:active{opacity:.7;}
+  .sync-btn.loading{opacity:.6; pointer-events:none;}
+  .sync-btn .ic{display:inline-block;}
+  .sync-btn.loading .ic{animation:spin 1s linear infinite;}
+  @keyframes spin{from{transform:rotate(0deg);} to{transform:rotate(360deg);}}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--text-dim); flex:none;}
+  .dot.on{background:var(--brand); box-shadow:0 0 6px var(--brand);}
+  .dot.off{background:var(--danger);}
+
+  .seg{display:flex; gap:6px; margin-top:10px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none;}
+  .seg::-webkit-scrollbar{display:none;}
+  .seg button{
+    flex:none; border:1px solid var(--border); background:var(--surface); color:var(--text-dim);
+    padding:8px 14px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .seg button.active{background:var(--brand); border-color:var(--brand); color:#04231a;}
+
+  main{flex:1; padding:8px 14px 20px;}
+  .section-title{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin:16px 2px 8px; font-weight:700;}
+
+  /* Match card */
+  .match{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:12px 12px; margin-bottom:10px; cursor:pointer; transition:border-color .15s;
+  }
+  .match:active{border-color:var(--brand);}
+  .match-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .match-meta{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-dim);}
+  .chip{padding:2px 8px; border-radius:999px; font-size:10.5px; font-weight:700;}
+  .chip.nam{background:rgba(77,155,255,.15); color:var(--nam);}
+  .chip.nu{background:rgba(255,111,165,.15); color:var(--nu);}
+  .chip.mix{background:rgba(255,176,59,.15); color:var(--mix);}
+  .badge{font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:999px;}
+  .badge.pending{background:#28394a; color:var(--text-dim);}
+  .badge.done{background:rgba(61,220,151,.15); color:var(--brand);}
+  .badge.locked{background:rgba(255,93,108,.1); color:var(--danger);}
+  .teams{display:flex; flex-direction:column; gap:4px;}
+  .team-row{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .team-name{font-size:14px; font-weight:600; line-height:1.3;}
+  .team-name.win{color:var(--brand);}
+  .team-name.placeholder{color:var(--text-dim); font-style:italic; font-weight:500;}
+  .team-score{font-size:16px; font-weight:800; min-width:22px; text-align:right; color:var(--text-dim);}
+  .team-score.win{color:var(--brand);}
+  .vs{font-size:10px; color:var(--text-dim); text-align:center; margin:1px 0;}
+  .label-line{font-size:11px; color:var(--text-dim); margin-top:6px;}
+
+  /* Court chips */
+  .court-scroll{display:flex; gap:6px; overflow-x:auto; padding:2px 0 8px; scrollbar-width:none;}
+  .court-scroll::-webkit-scrollbar{display:none;}
+  .court-chip{
+    flex:none; width:44px; height:44px; border-radius:12px; background:var(--surface); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:var(--text-dim); cursor:pointer;
+  }
+  .court-chip.active{background:var(--brand); border-color:var(--brand); color:#04231a;}
+
+  /* Standings table */
+  .group-block{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px; overflow:hidden;}
+  .group-head{display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--surface-2);}
+  .group-head b{font-size:13px;}
+  .tag-status{font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700;}
+  .tag-status.provisional{background:rgba(255,176,59,.15); color:var(--accent);}
+  .tag-status.final{background:rgba(61,220,151,.15); color:var(--brand);}
+  table.std{width:100%; border-collapse:collapse; font-size:12px;}
+  table.std th, table.std td{padding:7px 6px; text-align:center; border-bottom:1px solid var(--border);}
+  table.std th{color:var(--text-dim); font-weight:600; font-size:10.5px;}
+  table.std td:first-child, table.std th:first-child{text-align:left; padding-left:10px;}
+  table.std tr:last-child td{border-bottom:none;}
+  table.std tr.rank1 td:first-child, table.std tr.rank2 td:first-child{color:var(--brand); font-weight:700;}
+  .rank-pill{display:inline-block; width:18px; height:18px; line-height:18px; border-radius:5px; background:var(--border); color:var(--text-dim); font-size:10px; font-weight:800; text-align:center; margin-right:6px;}
+  tr.rank1 .rank-pill, tr.rank2 .rank-pill{background:var(--brand); color:#04231a;}
+
+  /* Bracket */
+  .round-title{font-size:12.5px; font-weight:700; color:var(--text-dim); margin:14px 2px 8px; display:flex; align-items:center; gap:6px;}
+  .round-title::before{content:""; width:4px; height:14px; background:var(--brand); border-radius:2px;}
+  .bracket-grid{display:grid; grid-template-columns:1fr; gap:10px;}
+
+  /* Sheet modal */
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:50; display:none; align-items:flex-end;}
+  .overlay.show{display:flex;}
+  .sheet{
+    width:100%; max-width:560px; margin:0 auto; background:var(--surface); border-radius:20px 20px 0 0;
+    padding:18px 18px calc(18px + var(--safe-bottom)); animation:up .18s ease-out; border-top:1px solid var(--border);
+  }
+  @keyframes up{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .sheet-handle{width:36px; height:4px; background:var(--border); border-radius:99px; margin:0 auto 14px;}
+  .sheet h2{font-size:15px; margin:0 0 2px; font-weight:700;}
+  .sheet .sub{font-size:12px; color:var(--text-dim); margin-bottom:16px;}
+  .score-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; background:var(--surface-2); border-radius:12px; padding:10px 12px;}
+  .score-row .pname{font-size:14px; font-weight:600; flex:1; line-height:1.3;}
+  .stepper{display:flex; align-items:center; gap:10px;}
+  .stepper button{
+    width:36px; height:36px; border-radius:10px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text); font-size:18px; font-weight:700; cursor:pointer;
+  }
+  .stepper input{
+    width:42px; text-align:center; font-size:18px; font-weight:800; background:transparent; border:none; color:var(--text);
+  }
+  .warn{font-size:12px; color:var(--accent); background:rgba(255,176,59,.1); border-radius:10px; padding:8px 10px; margin-bottom:12px; display:none;}
+  .warn.show{display:block;}
+  .sheet-actions{display:flex; gap:10px; margin-top:6px;}
+  .btn{flex:1; border:none; border-radius:12px; padding:13px; font-size:14px; font-weight:700; cursor:pointer;}
+  .btn.primary{background:var(--brand); color:#04231a;}
+  .btn.primary:disabled{background:#2a3a44; color:var(--text-dim);}
+  .btn.ghost{background:var(--surface-2); color:var(--text-dim);}
+
+  /* bottom nav */
+  nav.bottom{
+    position:fixed; bottom:0; left:0; right:0; z-index:30; background:var(--surface); border-top:1px solid var(--border);
+    padding-bottom: var(--safe-bottom);
+  }
+  .nav-inner{max-width:560px; margin:0 auto; display:flex;}
+  .nav-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0 8px; background:none; border:none;
+    color:var(--text-dim); font-size:10.5px; font-weight:700; cursor:pointer;
+  }
+  .nav-btn .ic{font-size:19px;}
+  .nav-btn.active{color:var(--brand);}
+
+  .empty{text-align:center; color:var(--text-dim); font-size:13px; padding:30px 10px;}
+  .final-badge{background:rgba(61,220,151,.12); border:1px solid var(--brand); border-radius:12px; padding:12px; text-align:center; font-size:13px; font-weight:700; color:var(--brand); margin-top:6px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand-row">
+      <h1>🏓 Giải Pickleball <span>EPTC</span></h1>
+      <div class="status"><span class="dot" id="connDot"></span><span id="connText">Đang kết nối…</span></div>
+    </div>
+    <div class="sync-row">
+      <button class="sync-btn" id="syncBtn"><span class="ic">🔄</span><span id="syncBtnText">Đồng bộ Google Sheet</span></button>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <div class="overlay" id="overlay">
+    <div class="sheet" id="sheet"></div>
+  </div>
+
+  <nav class="bottom">
+    <div class="nav-inner">
+      <button class="nav-btn" data-tab="schedule"><span class="ic">📅</span>Lịch thi đấu</button>
+      <button class="nav-btn" data-tab="standings"><span class="ic">📊</span>Bảng xếp hạng</button>
+      <button class="nav-btn" data-tab="bracket"><span class="ic">🏆</span>Vòng loại trực tiếp</button>
+    </div>
+  </nav>
+</div>
+
+<script>
+/* ---------------- Config ---------------- */
+const SUPABASE_URL = "https://kbcrctzbhtxxapdkgdjs.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiY3JjdHpiaHR4eGFwZGtnZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzOTQ1OTMsImV4cCI6MjEwMDk3MDU5M30.9YbJSaxBkvOzKmfVbZtwOAsZvzpjdLIy8qIj_hwmqBw";
+const TABLE = "pickleball_epct_matches";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// URL Web App của Google Apps Script (Deploy > New deployment > Web app) — dán URL vào đây sau khi deploy
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby3LRjJZEbYdR3oDo3zA3-1wYU3JK9rbJGUnNCmZL_OWRjgOTEl5o43tocFsOi5c-ecQw/exec";
+
+const TEAMS = {
+  "A1": "Nguyễn Mạnh Hùng - Hoàng Minh Hiển (A1)",
+  "A2": "Nguyễn Mậu Mạnh - Nguyễn Thái Thịnh (A2)",
+  "A3": "Phạm Anh Tuấn - Dương Duy Linh (A3)",
+  "A4": "Trần Tuấn Sơn - Nguyễn Văn Thạch (A4)",
+  "A5": "Phạm Thành Long - Nguyễn Quang Hưng (A5)",
+  "B1": "Cao Ngọc Tân - Nguyễn Văn Nam (B1)",
+  "B2": "Lưu Quang Minh - Vũ Tuấn Anh (B2)",
+  "B3": "Nguyễn Thành Mỹ - Hồ Thái Bình (B3)",
+  "B4": "Đặng Khánh Linh - Trần Văn Tuấn (B4)",
+  "B5": "Trần Hoàng Trung Hiếu - Trần Phương Nam (B5)",
+  "C1": "Lê Văn Công - Khổng Minh Thưởng (C1)",
+  "C2": "Quách Văn Việt - Trần Thanh Liêm (C2)",
+  "C3": "Hoàng Mạnh Cường - Nguyễn Tăng Nam Anh (C3)",
+  "C4": "Nguyễn Văn Hoạt - Trần Anh Tuấn (C4)",
+  "D1": "Nguyễn Đào Mười - Nguyễn Đức Trường (D1)",
+  "D2": "Trần Hoàng Linh - Nguyễn Minh Tuấn (D2)",
+  "D3": "Nguyễn Đức Minh - Đỗ Đức Hùng (D3)",
+  "D4": "Nguyễn Ngọc Thành - Đỗ Quang Việt (D4)",
+  "Mix_A1": "Nguyễn Đức Trường - Phạm Huyền My (Mix_A1)",
+  "Mix_A2": "Nguyễn Minh Tuấn - Hoàng Thị Hiền (Mix_A2)",
+  "Mix_A3": "Lưu Quang Minh - Nguyễn Bích Ngọc (Mix_A3)",
+  "Mix_B1": "Nguyễn Quang Hưng - Nguyễn Thị Liễu (Mix_B1)",
+  "Mix_B2": "Quách Văn Việt - Ngô Kiều Trang (Mix_B2)",
+  "Mix_B3": "Dương Duy Linh - Đỗ Thị Hồng Ngọc (Mix_B3)",
+  "Mix_C1": "Trần Thanh Liêm - Nguyễn Thị Huyền Trang (A) (Mix_C1)",
+  "Mix_C2": "Đỗ Đức Hùng - Nguyễn Trần Minh Trang (Mix_C2)",
+  "Mix_C3": "Trần Hoàng Linh - Nguyễn Thị Phương Thu (Mix_C3)",
+  "Mix_D1": "Vũ Tuấn Anh - Nguyễn Thị Huyền Trang (B) (Mix_D1)",
+  "Mix_D2": "Phạm Thành Long - Bùi Anh Thư (Mix_D2)",
+  "Mix_D3": "Trần Tuấn Sơn - Nguyễn Thị Kim Anh (Mix_D3)",
+  "N1": "Nguyễn Thị Kim Anh -Nguyễn Thị Liễu (N1)",
+  "N2": "Nguyễn Thị Huyền Trang (A) - Phạm Huyền My (N2)",
+  "N3": "Nguyễn Thị Huyền Trang (B) - Ngô Kiều Trang (N3)",
+  "N4": "Nguyễn Bích Ngọc - Đỗ Thị Hồng Ngọc (N4)"
+};
+
+const CAT_LABEL = { nam:"Nam đôi", nu:"Nữ đôi", mix:"Đôi Nam-Nữ" };
+const CAT_ORDER = ["nam","nu","mix"];
+const RANK_LABEL = ["Nhất","Nhì","Ba","Tư"];
+
+/* ---------------- State ---------------- */
+let MATCHES = [];
+let state = { tab:"schedule", court:"all", cat:"nam" };
+
+/* ---------------- Data fetch + realtime ---------------- */
+async function fetchAll(){
+  const { data, error } = await sb.from(TABLE).select("*").order("court",{ascending:true}).order("round",{ascending:true});
+  if(error){ console.error(error); setConn(false); return; }
+  MATCHES = data;
+  setConn(true);
+  render();
+}
+function setConn(ok){
+  document.getElementById("connDot").className = "dot " + (ok?"on":"off");
+  document.getElementById("connText").textContent = ok ? "Đã đồng bộ" : "Mất kết nối";
+}
+sb.channel("matches-live")
+  .on("postgres_changes",{event:"*",schema:"public",table:TABLE}, ()=>{ fetchAll(); })
+  .subscribe((status)=>{ if(status==="SUBSCRIBED") setConn(true); });
+
+/* ---------------- Resolution logic ---------------- */
+// Head-to-head win count, counting only completed matches played among the given set of codes
+function headToHeadWins(codes, groupMatches){
+  const h2h = {};
+  codes.forEach(c=>h2h[c]=0);
+  groupMatches.forEach(m=>{
+    if(m.status==="done" && m.score1!=null && m.score2!=null && codes.has(m.team1_code) && codes.has(m.team2_code)){
+      if(m.score1>m.score2) h2h[m.team1_code]++; else h2h[m.team2_code]++;
+    }
+  });
+  return h2h;
+}
+
+// Rank rows per rules: (1) số trận thắng, (2) đối đầu trực tiếp giữa các đội bằng điểm,
+// (3) hiệu số điểm, (4) tổng điểm ghi được
+function rankStandings(rows, groupMatches){
+  function sortTiedByH2H(group){
+    if(group.length<=1) return group;
+    const codes = new Set(group.map(r=>r.code));
+    const h2h = headToHeadWins(codes, groupMatches);
+    const withH2H = group.map(r=>({...r, h2h:h2h[r.code]}));
+    withH2H.sort((a,b)=> b.h2h-a.h2h);
+    const result = [];
+    let i=0;
+    while(i<withH2H.length){
+      let j=i;
+      while(j<withH2H.length && withH2H[j].h2h===withH2H[i].h2h) j++;
+      const sub = withH2H.slice(i,j);
+      if(sub.length>1){
+        sub.sort((a,b)=> b.diff-a.diff || b.pf-a.pf || a.name.localeCompare(b.name));
+      }
+      result.push(...sub);
+      i=j;
+    }
+    return result;
+  }
+
+  const byWin = {};
+  rows.forEach(r=>{ (byWin[r.win] = byWin[r.win]||[]).push(r); });
+  const winsDesc = Object.keys(byWin).map(Number).sort((a,b)=>b-a);
+  const final = [];
+  winsDesc.forEach(w=>{ final.push(...sortTiedByH2H(byWin[w])); });
+  return final;
+}
+
+function computeStandings(category, group){
+  const groupMatches = MATCHES.filter(m=>m.category===category && m.group_name===group && m.stage==="group");
+  const codes = new Set();
+  groupMatches.forEach(m=>{ codes.add(m.team1_code); codes.add(m.team2_code); });
+  const table = {};
+  codes.forEach(c=>{ table[c] = {code:c, name:TEAMS[c]||c, played:0, win:0, loss:0, pf:0, pa:0}; });
+  let done=0;
+  groupMatches.forEach(m=>{
+    if(m.status==="done" && m.score1!=null && m.score2!=null){
+      done++;
+      const t1=table[m.team1_code], t2=table[m.team2_code];
+      t1.played++; t2.played++;
+      t1.pf+=m.score1; t1.pa+=m.score2;
+      t2.pf+=m.score2; t2.pa+=m.score1;
+      if(m.score1>m.score2){ t1.win++; t2.loss++; } else { t2.win++; t1.loss++; }
+    }
+  });
+  const rows0 = Object.values(table).map(r=>({...r, diff:r.pf-r.pa}));
+  const rows = rankStandings(rows0, groupMatches);
+  return { rows, total: groupMatches.length, done, complete: done>0 && done===groupMatches.length };
+}
+
+function findKOMatch(category, localCode){
+  return MATCHES.find(m=>m.category===category && m.stage==="ko" && m.local_code===localCode);
+}
+
+// Resolve a code (literal team code, "Nhất A"/"Nhì B" rank ref, or "TK1"/"Thắng BK1" match ref)
+function resolveTeam(code, category){
+  if(!code) return {name:"—", resolved:false, code:null};
+  if(TEAMS[code]) return {name:TEAMS[code], resolved:true, code};
+
+  let m = code.match(/^(Nhất|Nhì|Ba|Tư)\s+(.+)$/);
+  if(m){
+    const rank = m[1], group = m[2];
+    const idx = RANK_LABEL.indexOf(rank);
+    const { rows, complete } = computeStandings(category, group);
+    if(rows[idx] && rows[idx].played>0){
+      return { name: rows[idx].name + (complete?"":" (tạm)"), resolved: complete, code: rows[idx].code, provisional: !complete };
+    }
+    return { name: `${rank} bảng ${group}`, resolved:false, code:null };
+  }
+
+  const localCode = code.replace(/^Thắng\s+/,"").trim();
+  const ref = findKOMatch(category, localCode);
+  if(ref){
+    if(ref.status==="done" && ref.winner_name){
+      return { name: ref.winner_name, resolved:true, code: ref.winner_code };
+    }
+    return { name: `Thắng ${ref.label}`, resolved:false, code:null };
+  }
+  return { name: code, resolved:false, code:null };
+}
+
+function resolvedMatch(m){
+  return { t1: resolveTeam(m.team1_code, m.category), t2: resolveTeam(m.team2_code, m.category) };
+}
+
+/* ---------------- Rendering ---------------- */
+const $main = document.getElementById("main");
+
+function render(){
+  if(state.tab==="schedule") renderSchedule();
+  else if(state.tab==="standings") renderStandings();
+  else renderBracket();
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active", b.dataset.tab===state.tab));
+}
+
+function catChipsHTML(){
+  return `<div class="seg" id="catSeg">${CAT_ORDER.map(c=>`<button data-cat="${c}" class="${state.cat===c?'active':''}">${CAT_LABEL[c]}</button>`).join("")}</div>`;
+}
+
+function statusBadge(m){
+  if(m.status==="done") return `<span class="badge done">✓ Xong</span>`;
+  return `<span class="badge pending">Chưa đấu</span>`;
+}
+
+function matchCardHTML(m){
+  const {t1,t2} = resolvedMatch(m);
+  const catCls = m.category;
+  const win1 = m.status==="done" && m.score1>m.score2;
+  const win2 = m.status==="done" && m.score2>m.score1;
+  return `
+  <div class="match" data-id="${m.id}">
+    <div class="match-top">
+      <div class="match-meta">
+        <span class="chip ${catCls}">${CAT_LABEL[m.category]||m.category}</span>
+        <span>Sân ${m.court} · Lượt ${m.round} · ${m.time_range||""}</span>
+      </div>
+      ${statusBadge(m)}
+    </div>
+    <div class="teams">
+      <div class="team-row">
+        <div class="team-name ${win1?'win':''} ${t1.resolved?'':'placeholder'}">${t1.name}</div>
+        <div class="team-score ${win1?'win':''}">${m.score1!=null?m.score1:'-'}</div>
+      </div>
+      <div class="vs">vs</div>
+      <div class="team-row">
+        <div class="team-name ${win2?'win':''} ${t2.resolved?'':'placeholder'}">${t2.name}</div>
+        <div class="team-score ${win2?'win':''}">${m.score2!=null?m.score2:'-'}</div>
+      </div>
+    </div>
+    <div class="label-line">${m.label}</div>
+  </div>`;
+}
+
+function renderSchedule(){
+  const courts = [1,2,3,4,5,6,7];
+  const courtChips = `<div class="court-scroll" id="courtScroll">
+    <div class="court-chip ${state.court==='all'?'active':''}" data-court="all">Tất cả</div>
+    ${courts.map(c=>`<div class="court-chip ${state.court===c?'active':''}" data-court="${c}">S${c}</div>`).join("")}
+  </div>`;
+
+  let list = MATCHES.slice();
+  if(state.court!=="all") list = list.filter(m=>m.court===state.court);
+  list.sort((a,b)=> a.court-b.court || a.round-b.round);
+
+  const cards = list.length ? list.map(matchCardHTML).join("") : `<div class="empty">Không có trận đấu</div>`;
+
+  $main.innerHTML = `${courtChips}<div>${cards}</div>`;
+  document.querySelectorAll("#courtScroll .court-chip").forEach(el=>{
+    el.onclick = ()=>{ const v = el.dataset.court; state.court = v==="all"?"all":Number(v); render(); };
+  });
+  bindMatchClicks();
+}
+
+function renderStandings(){
+  const groupsByCat = {
+    nam:["A","B","C","D"],
+    mix:["A","B","C","D"],
+    nu:["N"]
+  };
+  const groups = groupsByCat[state.cat];
+  let html = catChipsHTML();
+
+  groups.forEach(g=>{
+    const { rows, total, done, complete } = computeStandings(state.cat, g);
+    const glabel = state.cat==="mix" ? `Bảng ${g} (Đôi Nam-Nữ)` : `Bảng ${g}`;
+    html += `<div class="group-block">
+      <div class="group-head">
+        <b>${glabel}</b>
+        <span class="tag-status ${complete?'final':'provisional'}">${done}/${total} trận · ${complete?'Đã xong':'Đang diễn ra'}</span>
+      </div>
+      <table class="std">
+        <thead><tr><th>Đội</th><th>Trận</th><th>T</th><th>B</th><th>Hiệu số</th></tr></thead>
+        <tbody>
+          ${rows.map((r,i)=>`<tr class="${i===0?'rank1':i===1?'rank2':''}">
+            <td><span class="rank-pill">${i+1}</span>${r.name}</td>
+            <td>${r.played}</td>
+            <td>${r.win}</td>
+            <td>${r.loss}</td>
+            <td>${r.diff>0?'+':''}${r.diff}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>`;
+  });
+
+  $main.innerHTML = html;
+  bindCatSeg();
+}
+
+function koCardHTML(category, localCode, title){
+  const m = findKOMatch(category, localCode);
+  if(!m) return "";
+  const {t1,t2} = resolvedMatch(m);
+  const win1 = m.status==="done" && m.score1>m.score2;
+  const win2 = m.status==="done" && m.score2>m.score1;
+  return `<div class="match" data-id="${m.id}">
+    <div class="match-top">
+      <div class="match-meta"><span>${title}</span></div>
+      ${statusBadge(m)}
+    </div>
+    <div class="teams">
+      <div class="team-row"><div class="team-name ${win1?'win':''} ${t1.resolved?'':'placeholder'}">${t1.name}</div><div class="team-score ${win1?'win':''}">${m.score1!=null?m.score1:'-'}</div></div>
+      <div class="vs">vs</div>
+      <div class="team-row"><div class="team-name ${win2?'win':''} ${t2.resolved?'':'placeholder'}">${t2.name}</div><div class="team-score ${win2?'win':''}">${m.score2!=null?m.score2:'-'}</div></div>
+    </div>
+    <div class="label-line">Sân ${m.court} · Lượt ${m.round} · ${m.time_range||""}</div>
+  </div>`;
+}
+
+function renderBracket(){
+  let html = catChipsHTML();
+
+  if(state.cat==="nu"){
+    const m = findKOMatch("nu","CK");
+    html += `<div class="round-title">Chung kết Đôi Nữ</div>`;
+    html += koCardHTML("nu","CK","Chung kết");
+    const champ = m && m.status==="done" ? (m.score1>m.score2 ? m.winner_name : m.winner_name) : null;
+    if(champ) html += `<div class="final-badge">🏆 Vô địch: ${champ}</div>`;
+  } else {
+    html += `<div class="round-title">Tứ kết</div><div class="bracket-grid">`;
+    html += koCardHTML(state.cat,"TK1","QF1: Nhất A - Nhì B");
+    html += koCardHTML(state.cat,"TK2","QF2: Nhất B - Nhì A");
+    html += koCardHTML(state.cat,"TK3","QF3: Nhất C - Nhì D");
+    html += koCardHTML(state.cat,"TK4","QF4: Nhất D - Nhì C");
+    html += `</div>`;
+    html += `<div class="round-title">Bán kết</div><div class="bracket-grid">`;
+    html += koCardHTML(state.cat,"BK1","SF1: Thắng TK1 - Thắng TK3");
+    html += koCardHTML(state.cat,"BK2","SF2: Thắng TK2 - Thắng TK4");
+    html += `</div>`;
+    html += `<div class="round-title">Chung kết</div>`;
+    html += koCardHTML(state.cat,"CK", state.cat==="mix" ? "Chung kết Đôi Nam-Nữ" : "Chung kết Đôi Nam");
+    const cm = findKOMatch(state.cat,"CK");
+    if(cm && cm.status==="done" && cm.winner_name) html += `<div class="final-badge">🏆 Vô địch: ${cm.winner_name}</div>`;
+  }
+
+  $main.innerHTML = html;
+  bindCatSeg();
+  bindMatchClicks();
+}
+
+function bindCatSeg(){
+  document.querySelectorAll("#catSeg button").forEach(b=>{
+    b.onclick = ()=>{ state.cat = b.dataset.cat; render(); };
+  });
+}
+
+function bindMatchClicks(){
+  document.querySelectorAll(".match[data-id]").forEach(el=>{
+    el.onclick = ()=> openSheet(el.dataset.id);
+  });
+}
+
+/* ---------------- Score entry sheet ---------------- */
+const overlay = document.getElementById("overlay");
+const sheetEl = document.getElementById("sheet");
+let curScores = [0,0];
+
+function openSheet(id){
+  const m = MATCHES.find(x=>x.id===id);
+  if(!m) return;
+  const {t1,t2} = resolvedMatch(m);
+  curScores = [m.score1!=null?m.score1:0, m.score2!=null?m.score2:0];
+
+  const bothResolved = t1.resolved && t2.resolved;
+
+  sheetEl.innerHTML = `
+    <div class="sheet-handle"></div>
+    <h2>${m.label}</h2>
+    <div class="sub">Sân ${m.court} · Lượt ${m.round} · ${m.time_range||""} · ${CAT_LABEL[m.category]}</div>
+    <div class="warn" id="sheetWarn"></div>
+    <div class="score-row">
+      <div class="pname">${t1.name}</div>
+      <div class="stepper">
+        <button data-d="-1" data-i="0">−</button>
+        <input id="s1" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${curScores[0]}">
+        <button data-d="1" data-i="0">+</button>
+      </div>
+    </div>
+    <div class="score-row">
+      <div class="pname">${t2.name}</div>
+      <div class="stepper">
+        <button data-d="-1" data-i="1">−</button>
+        <input id="s2" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="${curScores[1]}">
+        <button data-d="1" data-i="1">+</button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="closeBtn">Đóng</button>
+      ${m.status==="done" ? `<button class="btn ghost" id="clearBtn" style="color:var(--danger);border-color:var(--danger);">Xóa kết quả</button>` : ``}
+      <button class="btn primary" id="saveBtn">Lưu kết quả</button>
+    </div>
+  `;
+
+  const warn = document.getElementById("sheetWarn");
+  if(!bothResolved){
+    warn.textContent = "Chưa xác định đủ 2 đội (đang chờ kết quả vòng trước) — vẫn có thể xem nhưng chưa thể lưu điểm.";
+    warn.classList.add("show");
+  }
+
+  sheetEl.querySelectorAll(".stepper button").forEach(b=>{
+    b.onclick = ()=>{
+      const i = Number(b.dataset.i), d = Number(b.dataset.d);
+      curScores[i] = Math.max(0, Math.min(99, curScores[i]+d));
+      document.getElementById(i===0?"s1":"s2").value = curScores[i];
+    };
+  });
+
+  [["s1",0],["s2",1]].forEach(([id,i])=>{
+    const inp = document.getElementById(id);
+    inp.addEventListener("focus", ()=> inp.select());
+    inp.addEventListener("input", ()=>{
+      const digits = inp.value.replace(/[^0-9]/g,"").slice(0,2);
+      inp.value = digits;
+      curScores[i] = digits==="" ? 0 : Math.max(0, Math.min(99, Number(digits)));
+    });
+    inp.addEventListener("blur", ()=>{ inp.value = curScores[i]; });
+  });
+
+  document.getElementById("closeBtn").onclick = closeSheet;
+  const clearBtn = document.getElementById("clearBtn");
+  if(clearBtn){
+    clearBtn.onclick = async ()=>{
+      if(!confirm("Xóa kết quả trận này? Trận sẽ trở về trạng thái chưa đấu.")) return;
+      clearBtn.disabled = true; clearBtn.textContent = "Đang xóa…";
+      const { error } = await sb.from(TABLE).update({
+        score1: null,
+        score2: null,
+        status: "pending",
+        winner_code: null,
+        winner_name: null,
+        updated_at: new Date().toISOString()
+      }).eq("id", m.id);
+      if(error){ warn.textContent="Lỗi khi xóa, thử lại."; warn.classList.add("show"); clearBtn.disabled=false; clearBtn.textContent="Xóa kết quả"; return; }
+      closeSheet();
+      fetchAll();
+    };
+  }
+  document.getElementById("saveBtn").onclick = async ()=>{
+    if(!bothResolved){ warn.textContent="Chưa xác định đủ 2 đội, không thể lưu điểm lúc này."; warn.classList.add("show"); return; }
+    if(curScores[0]===curScores[1]){ warn.textContent="Tỷ số không được hòa. Vui lòng nhập lại."; warn.classList.add("show"); return; }
+    const saveBtn = document.getElementById("saveBtn");
+    saveBtn.disabled = true; saveBtn.textContent = "Đang lưu…";
+    const winnerIsT1 = curScores[0] > curScores[1];
+    const { error } = await sb.from(TABLE).update({
+      score1: curScores[0],
+      score2: curScores[1],
+      status: "done",
+      winner_code: winnerIsT1 ? t1.code : t2.code,
+      winner_name: winnerIsT1 ? t1.name.replace(/ \(tạm\)$/,"") : t2.name.replace(/ \(tạm\)$/,""),
+      updated_at: new Date().toISOString()
+    }).eq("id", m.id);
+    if(error){ warn.textContent="Lỗi khi lưu, thử lại."; warn.classList.add("show"); saveBtn.disabled=false; saveBtn.textContent="Lưu kết quả"; return; }
+    closeSheet();
+    fetchAll();
+  };
+
+  overlay.classList.add("show");
+}
+function closeSheet(){ overlay.classList.remove("show"); }
+overlay.addEventListener("click",(e)=>{ if(e.target===overlay) closeSheet(); });
+
+/* ---------------- Nav ---------------- */
+document.querySelectorAll(".nav-btn").forEach(b=>{
+  b.onclick = ()=>{ state.tab = b.dataset.tab; render(); };
+});
+
+/* ---------------- Đồng bộ Google Sheet ---------------- */
+const syncBtn = document.getElementById("syncBtn");
+const syncBtnText = document.getElementById("syncBtnText");
+syncBtn.onclick = async ()=>{
+  if(!GAS_WEB_APP_URL || GAS_WEB_APP_URL.indexOf("REPLACE_WITH")===0){
+    alert("Chưa cấu hình link Google Apps Script. Xem hướng dẫn để lấy link Web App rồi điền vào GAS_WEB_APP_URL trong file.");
+    return;
+  }
+  syncBtn.classList.add("loading");
+  syncBtnText.textContent = "Đang đồng bộ…";
+  try{
+    // mode:'no-cors' vì Apps Script Web App không trả CORS header cho domain khác —
+    // ta chỉ cần request được gửi đi và server tự chạy, không cần đọc phản hồi.
+    await fetch(GAS_WEB_APP_URL, { mode:"no-cors", cache:"no-store" });
+    syncBtnText.textContent = "Đã gửi yêu cầu ✓";
+  }catch(e){
+    syncBtnText.textContent = "Lỗi, thử lại";
+  }finally{
+    setTimeout(()=>{
+      syncBtn.classList.remove("loading");
+      syncBtnText.textContent = "Đồng bộ Google Sheet";
+    }, 2500);
+  }
+};
+
+/* ---------------- Init ---------------- */
+fetchAll();
+setInterval(fetchAll, 20000); // fallback poll in case realtime drops
+</script>
+</body>
+</html>
