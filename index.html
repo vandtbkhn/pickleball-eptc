@@ -511,6 +511,7 @@ function openSheet(id){
     </div>
     <div class="sheet-actions">
       <button class="btn ghost" id="closeBtn">Đóng</button>
+      ${m.status==="done" ? `<button class="btn ghost" id="clearBtn" style="color:var(--danger);border-color:var(--danger);">Xóa kết quả</button>` : ``}
       <button class="btn primary" id="saveBtn">Lưu kết quả</button>
     </div>
   `;
@@ -530,6 +531,24 @@ function openSheet(id){
   });
 
   document.getElementById("closeBtn").onclick = closeSheet;
+  const clearBtn = document.getElementById("clearBtn");
+  if(clearBtn){
+    clearBtn.onclick = async ()=>{
+      if(!confirm("Xóa kết quả trận này? Trận sẽ trở về trạng thái chưa đấu.")) return;
+      clearBtn.disabled = true; clearBtn.textContent = "Đang xóa…";
+      const { error } = await sb.from(TABLE).update({
+        score1: null,
+        score2: null,
+        status: "pending",
+        winner_code: null,
+        winner_name: null,
+        updated_at: new Date().toISOString()
+      }).eq("id", m.id);
+      if(error){ warn.textContent="Lỗi khi xóa, thử lại."; warn.classList.add("show"); clearBtn.disabled=false; clearBtn.textContent="Xóa kết quả"; return; }
+      closeSheet();
+      fetchAll();
+    };
+  }
   document.getElementById("saveBtn").onclick = async ()=>{
     if(!bothResolved){ warn.textContent="Chưa xác định đủ 2 đội, không thể lưu điểm lúc này."; warn.classList.add("show"); return; }
     if(curScores[0]===curScores[1]){ warn.textContent="Tỷ số không được hòa. Vui lòng nhập lại."; warn.classList.add("show"); return; }
