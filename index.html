@@ -163,6 +163,44 @@
 
   .empty{text-align:center; color:var(--text-dim); font-size:13px; padding:30px 10px;}
   .final-badge{background:rgba(61,220,151,.12); border:1px solid var(--brand); border-radius:12px; padding:12px; text-align:center; font-size:13px; font-weight:700; color:var(--brand); margin-top:6px;}
+
+  /* ---------------- Giao diện máy tính / PC (tự bật khi màn hình rộng) ---------------- */
+  @media (min-width: 860px){
+    body{ background: #0a1119; }
+    #app{
+      max-width:1160px; padding-bottom:24px; min-height:auto; margin:24px auto;
+      border:1px solid var(--border); border-radius:20px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.35);
+    }
+    header.top{padding:22px 32px 14px;}
+    .brand-row h1{font-size:20px;}
+    .sync-row{padding:8px 32px 0;}
+    main{padding:8px 32px 32px; order:1;}
+
+    /* nav: chuyển thành thanh tab ngay dưới header thay vì thanh cố định ở đáy màn hình */
+    nav.bottom{
+      position:static; border-top:none; border-bottom:1px solid var(--border); background:transparent;
+      padding-bottom:0;
+    }
+    .nav-inner{max-width:none; margin:0 32px; gap:6px; width:auto;}
+    .nav-btn{flex:none; flex-direction:row; gap:7px; padding:14px 6px; font-size:13px; border-bottom:2px solid transparent;}
+    .nav-btn.active{border-bottom-color:var(--brand);}
+    .nav-btn .ic{font-size:16px;}
+
+    /* lịch thi đấu: nhiều cột */
+    .match-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:12px;}
+    .court-scroll{flex-wrap:wrap; overflow:visible;}
+
+    /* bảng xếp hạng: nhiều cột */
+    .std-groups{display:grid; grid-template-columns:repeat(auto-fill, minmax(380px, 1fr)); gap:12px; align-items:start;}
+    .group-block{margin-bottom:0;}
+
+    /* vòng loại trực tiếp: các trận cùng vòng nằm ngang hàng */
+    .bracket-grid{grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));}
+
+    /* ô nhập điểm hiện dạng hộp thoại giữa màn hình thay vì trượt lên từ đáy */
+    .overlay{align-items:center; justify-content:center;}
+    .sheet{max-width:420px; border-radius:20px; border-top:1px solid var(--border);}
+  }
 </style>
 </head>
 <body>
@@ -425,7 +463,7 @@ function renderSchedule(){
 
   const cards = list.length ? list.map(matchCardHTML).join("") : `<div class="empty">Không có trận đấu</div>`;
 
-  $main.innerHTML = `${courtChips}<div>${cards}</div>`;
+  $main.innerHTML = `${courtChips}<div class="match-grid">${cards}</div>`;
   document.querySelectorAll("#courtScroll .court-chip").forEach(el=>{
     el.onclick = ()=>{ const v = el.dataset.court; state.court = v==="all"?"all":Number(v); render(); };
   });
@@ -440,6 +478,7 @@ function renderStandings(){
   };
   const groups = groupsByCat[state.cat];
   let html = catChipsHTML();
+  html += `<div class="std-groups">`;
 
   groups.forEach(g=>{
     const { rows, total, done, complete } = computeStandings(state.cat, g);
@@ -463,6 +502,7 @@ function renderStandings(){
       </table>
     </div>`;
   });
+  html += `</div>`;
 
   $main.innerHTML = html;
   bindCatSeg();
