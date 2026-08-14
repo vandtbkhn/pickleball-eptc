@@ -119,6 +119,17 @@
   .round-title::before{content:""; width:4px; height:14px; background:var(--brand); border-radius:2px;}
   .bracket-grid{display:grid; grid-template-columns:1fr; gap:10px;}
 
+  /* Danh sách VĐV */
+  .roster-list{display:flex; flex-direction:column;}
+  .roster-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border);}
+  .roster-row:last-child{border-bottom:none;}
+  .roster-name{font-size:12.5px; font-weight:600; line-height:1.4;}
+  .roster-edit{flex:none; background:var(--surface-2); border:1px solid var(--border); border-radius:9px; width:32px; height:32px; font-size:14px; cursor:pointer;}
+  .roster-input{
+    width:100%; box-sizing:border-box; background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    padding:11px 12px; font-size:14px; color:var(--text); margin-bottom:16px;
+  }
+
   /* Sheet modal */
   .overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:50; display:none; align-items:flex-end;}
   .overlay.show{display:flex;}
@@ -226,6 +237,7 @@
       <button class="nav-btn" data-tab="schedule"><span class="ic">📅</span>Lịch thi đấu</button>
       <button class="nav-btn" data-tab="standings"><span class="ic">📊</span>Bảng xếp hạng</button>
       <button class="nav-btn" data-tab="bracket"><span class="ic">🏆</span>Vòng loại trực tiếp</button>
+      <button class="nav-btn" data-tab="roster"><span class="ic">🧑‍🤝‍🧑</span>VĐV</button>
     </div>
   </nav>
 </div>
@@ -235,46 +247,19 @@
 const SUPABASE_URL = "https://kbcrctzbhtxxapdkgdjs.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiY3JjdHpiaHR4eGFwZGtnZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzOTQ1OTMsImV4cCI6MjEwMDk3MDU5M30.9YbJSaxBkvOzKmfVbZtwOAsZvzpjdLIy8qIj_hwmqBw";
 const TABLE = "pickleball_epct_matches";
+const TEAMS_TABLE = "pickleball_epct_teams";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // URL Web App của Google Apps Script (Deploy > New deployment > Web app) — dán URL vào đây sau khi deploy
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby_LehWB7PCcuT9r-p8i8SloYSzlCEOn0k-TMwCvRFiYsdpuqAERyeiL2NSZTS6Pjt-8g/exec";
 
-const TEAMS = {
-  "A1": "Nguyễn Mạnh Hùng - Hoàng Minh Hiển (A1)",
-  "A2": "Nguyễn Mậu Mạnh - Nguyễn Thái Thịnh (A2)",
-  "A3": "Phạm Anh Tuấn - Dương Duy Linh (A3)",
-  "A4": "Trần Tuấn Sơn - Nguyễn Văn Thạch (A4)",
-  "A5": "Phạm Thành Long - Nguyễn Quang Hưng (A5)",
-  "B1": "Cao Ngọc Tân - Nguyễn Văn Nam (B1)",
-  "B2": "Lưu Quang Minh - Vũ Tuấn Anh (B2)",
-  "B3": "Nguyễn Thành Mỹ - Hồ Thái Bình (B3)",
-  "B4": "Đặng Khánh Linh - Trần Văn Tuấn (B4)",
-  "B5": "Trần Hoàng Trung Hiếu - Trần Phương Nam (B5)",
-  "C1": "Lê Văn Công - Khổng Minh Thưởng (C1)",
-  "C2": "Quách Văn Việt - Trần Thanh Liêm (C2)",
-  "C3": "Hoàng Mạnh Cường - Nguyễn Tăng Nam Anh (C3)",
-  "C4": "Nguyễn Văn Hoạt - Trần Anh Tuấn (C4)",
-  "D1": "Nguyễn Đào Mười - Nguyễn Đức Trường (D1)",
-  "D2": "Trần Hoàng Linh - Nguyễn Minh Tuấn (D2)",
-  "D3": "Nguyễn Đức Minh - Đỗ Đức Hùng (D3)",
-  "D4": "Nguyễn Ngọc Thành - Đỗ Quang Việt (D4)",
-  "Mix_A1": "Nguyễn Đức Trường - Phạm Huyền My (Mix_A1)",
-  "Mix_A2": "Nguyễn Minh Tuấn - Hoàng Thị Hiền (Mix_A2)",
-  "Mix_A3": "Lưu Quang Minh - Nguyễn Bích Ngọc (Mix_A3)",
-  "Mix_B1": "Nguyễn Quang Hưng - Nguyễn Thị Liễu (Mix_B1)",
-  "Mix_B2": "Quách Văn Việt - Ngô Kiều Trang (Mix_B2)",
-  "Mix_B3": "Dương Duy Linh - Đỗ Thị Hồng Ngọc (Mix_B3)",
-  "Mix_C1": "Trần Thanh Liêm - Nguyễn Thị Huyền Trang (A) (Mix_C1)",
-  "Mix_C2": "Đỗ Đức Hùng - Nguyễn Trần Minh Trang (Mix_C2)",
-  "Mix_C3": "Trần Hoàng Linh - Nguyễn Thị Phương Thu (Mix_C3)",
-  "Mix_D1": "Vũ Tuấn Anh - Nguyễn Thị Huyền Trang (B) (Mix_D1)",
-  "Mix_D2": "Phạm Thành Long - Bùi Anh Thư (Mix_D2)",
-  "Mix_D3": "Trần Tuấn Sơn - Nguyễn Thị Kim Anh (Mix_D3)",
-  "N1": "Nguyễn Thị Kim Anh -Nguyễn Thị Liễu (N1)",
-  "N2": "Nguyễn Thị Huyền Trang (A) - Phạm Huyền My (N2)",
-  "N3": "Nguyễn Thị Huyền Trang (B) - Ngô Kiều Trang (N3)",
-  "N4": "Nguyễn Bích Ngọc - Đỗ Thị Hồng Ngọc (N4)"
-};
+// Danh sách VĐV giờ được nạp động từ Supabase (bảng pickleball_epct_teams) — xem fetchTeams().
+// Có thể sửa trực tiếp trên app, ở tab "VĐV", không cần sửa code nữa.
+let TEAMS = {};
+let TEAM_LIST = [];
+
+function escapeHtml(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
 
 const CAT_LABEL = { nam:"Nam đôi", nu:"Nữ đôi", mix:"Đôi Nam-Nữ" };
 const CAT_ORDER = ["nam","nu","mix"];
@@ -285,6 +270,13 @@ let MATCHES = [];
 let state = { tab:"schedule", court:"all", cat:"nam" };
 
 /* ---------------- Data fetch + realtime ---------------- */
+async function fetchTeams(){
+  const { data, error } = await sb.from(TEAMS_TABLE).select("*").order("category",{ascending:true}).order("group_name",{ascending:true}).order("code",{ascending:true});
+  if(error){ console.error(error); return; }
+  TEAM_LIST = data;
+  TEAMS = {};
+  data.forEach(t=>{ TEAMS[t.code] = t.name; });
+}
 async function fetchAll(){
   const { data, error } = await sb.from(TABLE).select("*").order("court",{ascending:true}).order("round",{ascending:true});
   if(error){ console.error(error); setConn(false); return; }
@@ -299,6 +291,9 @@ function setConn(ok){
 sb.channel("matches-live")
   .on("postgres_changes",{event:"*",schema:"public",table:TABLE}, ()=>{ fetchAll(); })
   .subscribe((status)=>{ if(status==="SUBSCRIBED") setConn(true); });
+sb.channel("teams-live")
+  .on("postgres_changes",{event:"*",schema:"public",table:TEAMS_TABLE}, async ()=>{ await fetchTeams(); render(); })
+  .subscribe();
 
 /* ---------------- Resolution logic ---------------- */
 // Head-to-head win count, counting only completed matches played among the given set of codes
@@ -408,6 +403,7 @@ const $main = document.getElementById("main");
 function render(){
   if(state.tab==="schedule") renderSchedule();
   else if(state.tab==="standings") renderStandings();
+  else if(state.tab==="roster") renderRoster();
   else renderBracket();
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active", b.dataset.tab===state.tab));
 }
@@ -571,6 +567,79 @@ function bindMatchClicks(){
   });
 }
 
+/* ---------------- Danh sách VĐV (xem + sửa tên) ---------------- */
+function renderRoster(){
+  let html = catChipsHTML();
+  const groups = {};
+  TEAM_LIST.filter(t=>t.category===state.cat).forEach(t=>{
+    (groups[t.group_name] = groups[t.group_name] || []).push(t);
+  });
+  const groupNames = Object.keys(groups).sort();
+
+  if(!groupNames.length){
+    html += `<div class="empty">Chưa có dữ liệu VĐV</div>`;
+  } else {
+    html += `<div class="std-groups">`;
+    groupNames.forEach(g=>{
+      html += `<div class="group-block roster-block">
+        <div class="group-head"><b>Bảng ${escapeHtml(g)}</b><span class="tag-status final">${groups[g].length} đội</span></div>
+        <div class="roster-list">
+          ${groups[g].map(t=>`
+            <div class="roster-row">
+              <div class="roster-name">${escapeHtml(t.name)}</div>
+              <button class="roster-edit" data-code="${escapeHtml(t.code)}" aria-label="Sửa tên">✏️</button>
+            </div>
+          `).join("")}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  $main.innerHTML = html;
+  bindCatSeg();
+  bindRosterClicks();
+}
+
+function bindRosterClicks(){
+  document.querySelectorAll(".roster-edit").forEach(el=>{
+    el.onclick = ()=> openRosterEdit(el.dataset.code);
+  });
+}
+
+function openRosterEdit(code){
+  const t = TEAM_LIST.find(x=>x.code===code);
+  if(!t) return;
+  sheetEl.innerHTML = `
+    <div class="sheet-handle"></div>
+    <h2>Sửa tên đội (mã ${escapeHtml(t.code)})</h2>
+    <div class="sub">${CAT_LABEL[t.category]||t.category} · Bảng ${escapeHtml(t.group_name)}</div>
+    <div class="warn" id="rosterWarn"></div>
+    <input id="rosterNameInput" type="text" class="roster-input" value="${escapeHtml(t.name)}" maxlength="120">
+    <div class="sheet-actions">
+      <button class="btn ghost" id="rosterCancelBtn">Hủy</button>
+      <button class="btn primary" id="rosterSaveBtn">Lưu tên</button>
+    </div>
+  `;
+  const warn = document.getElementById("rosterWarn");
+  const input = document.getElementById("rosterNameInput");
+  document.getElementById("rosterCancelBtn").onclick = closeSheet;
+  document.getElementById("rosterSaveBtn").onclick = async ()=>{
+    const val = input.value.trim();
+    if(!val){ warn.textContent = "Tên không được để trống."; warn.classList.add("show"); return; }
+    const saveBtn = document.getElementById("rosterSaveBtn");
+    saveBtn.disabled = true; saveBtn.textContent = "Đang lưu…";
+    const { error } = await sb.from(TEAMS_TABLE).update({ name: val, updated_at: new Date().toISOString() }).eq("code", code);
+    if(error){ warn.textContent = "Lỗi khi lưu, thử lại."; warn.classList.add("show"); saveBtn.disabled = false; saveBtn.textContent = "Lưu tên"; return; }
+    closeSheet();
+    await fetchTeams();
+    render();
+  };
+  overlay.classList.add("show");
+  input.focus();
+  input.select();
+}
+
 /* ---------------- Score entry sheet ---------------- */
 const overlay = document.getElementById("overlay");
 const sheetEl = document.getElementById("sheet");
@@ -711,7 +780,7 @@ syncBtn.onclick = async ()=>{
 };
 
 /* ---------------- Init ---------------- */
-fetchAll();
+(async ()=>{ await fetchTeams(); await fetchAll(); })();
 setInterval(fetchAll, 20000); // fallback poll in case realtime drops
 </script>
 </body>
